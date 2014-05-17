@@ -32,47 +32,77 @@ from colanderalchemy import SQLAlchemySchemaNode
 import deform
 import colander
 
-import transaction
 from webhelpers.paginate import PageURL_WebOb, Page
 
 @view_config(route_name='login', check_csrf=True, renderer='json')
-def login(request):
-    # Verify the assertion and get the email of the user
-    email = verify_login(request).lower()
+class LoginView(object):
+    def __init__(self,request):
+        self.request = request
 
-    # Add the headers required to remember the user to the response
-    request.response.headers.extend(remember(request, email))
+    def __call__(self):
+        # Verify the assertion and get the email of the user
+        email = verify_login(self.request).lower()
 
-    try:
-        user = db.query(User).filter(User.email == email).one()
-    except NoResultFound:
-        basename, _ = email.split('@', 1)
-        basename = User.invalid_name_substr.sub(' ', basename).strip()
+        # Add the headers required to remember the user to the response
+        self.request.response.headers.extend(remember(self.request, email))
 
-        success = False
-        existing = map(lambda tup: tup[0],
-                db.query(User.name)
-                .filter( User.name.startswith(basename) ).all()
-                )
+        try:
+            user = db.query(User).filter(User.email == email).one()
+        except NoResultFound:
+            basename, _ = email.split('@', 1)
+            basename = User.invalid_name_substr.sub(' ', basename).strip()
+            gen = LoginView.NameGen(basename)
 
-        name = basename
-        i = 0
-        while name in existing:
-            name = "%s%d" % (basename,i)
-            i += 1
+            while True:
+                try:
+                    existing = map(lambda tup: tup[0],
+                            db.query(User.name)
+                            .filter( User.name.startswith(gen.prefix) )
+                            .order_by(User.name)
+                            .all()
+                            )
+                    existing.sort(key=len)
+                    # List is primarily sorted by string length, then in alphabetical order.
 
-        user = User(name=name, email=email)
-        db.merge(user)
-        transaction.commit()
-        # Return a json message containing the path to user configuration.
-        return {'redirect': resource_path(user),
-                'success': True
-                }
-    else:
-        # Return a json message containing the address or path to redirect to.
-        return {'redirect': request.POST['came_from'],
-                'success': True
-                }
+                    while True:
+                        name = gen.next()
+
+                    user = User(name=name, email=email)
+                    db.add(user)
+                    db.commit()
+
+                    # Return a json message containing the path to user configuration.
+                    return {'redirect': resource_path(user),
+                            'success': True
+                            }
+                except IntegrityError:
+                    db.rollback()
+
+        else:
+            # Return a json message containing the address or path to redirect to.
+            return {'redirect': self.request.POST['came_from'],
+                    'success': True
+                    }
+
+    class NameGen(object):
+        def __init__(self,base):
+            self.gen = self.rawgen(base)
+            self.prefix = base
+
+        def next(self):
+            (name, self.prefix) = next(self.gen)
+            return name
+
+        def rawgen(base):
+            yield((base,base))
+            i = 0
+            while True:
+                # A prospective name.
+                name = '%s %i' % (base, i)
+                # A string that the current and all following names are guaranteed to start with.
+                prefix = '%s %s' % (base, str(i)[:-1])
+                yield((name, prefix))
+                i += 1
 
 @view_config(route_name='logout', check_csrf=True, renderer='json')
 def logout(request):
@@ -98,20 +128,15 @@ def edit_user(request):
             appstruct=schema.dictify(request.context),
             )
 
-    contextid = request.context.id
-    userid = request.user.id
     try:
         if 'save' in request.POST:
             controls = request.POST.items()
             appstruct = form.validate(controls)
-            updated = schema.objectify(appstruct, User(id = request.context.id))
-            db.merge(updated)
-            transaction.commit()
-            return HTTPFound(location = resource_path(updated))
+            schema.objectify(appstruct, request.context)
+            db.commit()
+            return HTTPFound(location = resource_path(request.context))
     except IntegrityError:
-        transaction.abort()
-        request.context = db.merge(User(id = contextid))
-        request.user = db.merge(User(id = userid))
+        db.rollback()
         form['name'].error = colander.Invalid(form.schema['name'], 'Duplicate name found.')
     except deform.ValidationFailure:
         pass

@@ -24,12 +24,19 @@ from pyramid.security import (
     DENY_ALL,
     )
 
-from zope.sqlalchemy import ZopeTransactionExtension
+from pyramid.events import NewRequest
+from pyramid.events import subscriber
 
 from string import digits, ascii_uppercase, ascii_lowercase
 import re
 
-db = scoped_session(sessionmaker(extension=ZopeTransactionExtension(keep_session=True)))
+db = scoped_session(sessionmaker())
+
+@subscriber(NewRequest)
+def begin_session(event):
+    def end_session(request):
+        db.remove()
+    event.request.add_finished_callback(end_session)
 
 Base = declarative_base()
 
