@@ -1,3 +1,4 @@
 *.pyc
 *.sqlite
-*.py.js
+*.egg
+*.egg-info

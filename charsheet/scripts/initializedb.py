@@ -12,8 +12,8 @@ from pyramid.paster import (
 from pyramid.scripts.common import parse_vars
 
 from ..models import (
-    DBSession,
-    MyModel,
+    db,
+    User,
     Base,
     )
 
@@ -33,8 +33,13 @@ def main(argv=sys.argv):
     setup_logging(config_uri)
     settings = get_appsettings(config_uri, options=options)
     engine = engine_from_config(settings, 'sqlalchemy.')
-    DBSession.configure(bind=engine)
+    db.configure(bind=engine)
     Base.metadata.create_all(engine)
     with transaction.manager:
-        model = MyModel(name='one', value=1)
-        DBSession.add(model)
+        db.add(User(name='test', email='test@test.test'))
+        db.add(User(name='ankaan', email='ankan@a'))
+        db.add(User(name='ankaan0', email='0@a'))
+        db.add(User(name='ankaan1', email='1@a'))
+        db.add(User(name='ankaan2', email='2@a'))
+        db.add(User(name='ankaan4', email='4@a'))
+        #db.add(User(name='Ankan', email='ankaan@gmail.com', admin=False, active_admin=False))

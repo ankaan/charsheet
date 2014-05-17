@@ -10,18 +10,23 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
 
 requires = [
     'pyramid',
-    'pyramid_chameleon',
+    'pyramid_mako',
     'pyramid_debugtoolbar',
     'pyramid_tm',
+    'pyramid_persona',
+    'deform',
+    'deform_bootstrap',
+    'colanderalchemy',
     'SQLAlchemy',
     'transaction',
     'zope.sqlalchemy',
     'waitress',
+    'webhelpers',
     ]
 
 setup(name='charsheet',
       version='0.0',
-      description='charsheet',
+      description='Nianze character sheet manager',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
         "Programming Language :: Python",

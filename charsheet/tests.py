@@ -3,7 +3,7 @@ import transaction
 
 from pyramid import testing
 
-from .models import DBSession
+from .models import db
 
 
 class TestMyViewSuccessCondition(unittest.TestCase):
@@ -15,14 +15,14 @@ class TestMyViewSuccessCondition(unittest.TestCase):
             Base,
             MyModel,
             )
-        DBSession.configure(bind=engine)
+        db.configure(bind=engine)
         Base.metadata.create_all(engine)
         with transaction.manager:
             model = MyModel(name='one', value=55)
-            DBSession.add(model)
+            db.add(model)
 
     def tearDown(self):
-        DBSession.remove()
+        db.remove()
         testing.tearDown()
 
     def test_passing_view(self):
@@ -42,10 +42,10 @@ class TestMyViewFailureCondition(unittest.TestCase):
             Base,
             MyModel,
             )
-        DBSession.configure(bind=engine)
+        db.configure(bind=engine)
 
     def tearDown(self):
-        DBSession.remove()
+        db.remove()
         testing.tearDown()
 
     def test_failing_view(self):
