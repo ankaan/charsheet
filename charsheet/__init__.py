@@ -8,7 +8,6 @@ from .models import (
     db,
     Base,
     get_root,
-    get_user,
     get_groups,
     )
 
@@ -19,8 +18,6 @@ def main(global_config, **settings):
     db.configure(bind=engine)
     Base.metadata.bind = engine
     config = Configurator(settings=settings,root_factory=get_root)
-
-    config.add_request_method(get_user, 'user', reify=True)
 
     config.include('pyramid_persona')
     config.set_authentication_policy(AuthTktAuthenticationPolicy(

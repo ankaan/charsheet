@@ -1,31 +1,22 @@
-from sqlalchemy import (
-    Column,
-    Index,
-    Integer,
-    Text,
-    String,
-    Boolean,
-    )
-
-from sqlalchemy.orm.exc import NoResultFound
-
-from sqlalchemy.ext.declarative import declarative_base
-
-from sqlalchemy.orm import (
-    scoped_session,
-    sessionmaker,
-    )
-
-from pyramid.security import (
-    unauthenticated_userid,
-    Allow,
-    Everyone,
-    Authenticated,
-    DENY_ALL,
-    )
-
 from pyramid.events import NewRequest
 from pyramid.events import subscriber
+from pyramid.security import Allow
+from pyramid.security import ALL_PERMISSIONS
+from pyramid.security import Authenticated
+from pyramid.security import Deny
+from pyramid.security import DENY_ALL
+from pyramid.security import Everyone
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Text
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
 
 from string import digits, ascii_uppercase, ascii_lowercase
 import re
@@ -53,6 +44,9 @@ class Root(object):
     __parent__ = None
     __acl__ = [
             (Allow, 'group:active_admin', ('view','edit','add','admin')),
+            (Allow, 'group:validuser', 'basic'),
+            (Deny, Authenticated, 'basic'),
+            (Allow, Everyone, 'basic'),
             ]
 
     __crumbs_name__ = 'Home'
@@ -71,7 +65,7 @@ class Root(object):
 class UserList(object):
     __acl__ = [
             (Allow, 'group:admin', ('view','edit','add','admin')),
-            (Allow, Authenticated, 'view'),
+            (Allow, 'group:validuser', 'view'),
             ]
 
     __crumbs_name__ = 'User List'
@@ -82,9 +76,22 @@ class UserList(object):
         except NoResultFound:
             raise KeyError(key)
 
+class UserRegister(object):
+    __acl__ = [
+            (Deny, 'group:validuser', ALL_PERMISSIONS),
+            (Allow, Authenticated, 'add'),
+            DENY_ALL,
+            ]
+
+    __crumbs_name__ = 'Register'
+
 root = Root()
+
 userlist = UserList()
 root.add('user',userlist)
+
+userregister = UserRegister()
+root.add('register',userregister)
 
 class User(Base):
     __tablename__ = 'users'
@@ -156,24 +163,35 @@ class User(Base):
             )
 
     def groups(self):
-        groups = []
+        groups = ['group:validuser']
         if self.admin:
-            groups.append("group:admin")
+            groups.append('group:admin')
         if self.active_admin:
-            groups.append("group:active_admin")
+            groups.append('group:active_admin')
         return groups
 
 def get_root(request):
     return root
 
-def get_user(request):
-    user_id = unauthenticated_userid(request)
-    if user_id is not None:
-        return db.query(User).filter(User.email == user_id).first()
+@subscriber(NewRequest)
+def setup_user(event):
+    # Run authentication
+    event.request.authenticated_userid
+    # If authentication fails, get_group is never run and request.user is never set.
+    # Therefore; do it here!
+    try:
+        user = event.request.user
+    except AttributeError:
+        event.request.user = None
 
 def get_groups(userid, request):
+    try:
+        user = request.user
+    except AttributeError:
+        user = request.user = db.query(User).filter(User.email == userid).first()
+
     if request.user is None:
-        return None
+        return []
     else:
         return request.user.groups()
 

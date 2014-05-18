@@ -19,6 +19,8 @@ from .models import (
     db,
     User,
     UserList,
+    UserRegister,
+    userregister,
     Root,
     )
 
@@ -48,61 +50,15 @@ class LoginView(object):
 
         try:
             user = db.query(User).filter(User.email == email).one()
-        except NoResultFound:
-            basename, _ = email.split('@', 1)
-            basename = User.invalid_name_substr.sub(' ', basename).strip()
-            gen = LoginView.NameGen(basename)
-
-            while True:
-                try:
-                    existing = map(lambda tup: tup[0],
-                            db.query(User.name)
-                            .filter( User.name.startswith(gen.prefix) )
-                            .order_by(User.name)
-                            .all()
-                            )
-                    existing.sort(key=len)
-                    # List is primarily sorted by string length, then in alphabetical order.
-
-                    while True:
-                        name = gen.next()
-
-                    user = User(name=name, email=email)
-                    db.add(user)
-                    db.commit()
-
-                    # Return a json message containing the path to user configuration.
-                    return {'redirect': resource_path(user),
-                            'success': True
-                            }
-                except IntegrityError:
-                    db.rollback()
-
-        else:
             # Return a json message containing the address or path to redirect to.
             return {'redirect': self.request.POST['came_from'],
                     'success': True
                     }
-
-    class NameGen(object):
-        def __init__(self,base):
-            self.gen = self.rawgen(base)
-            self.prefix = base
-
-        def next(self):
-            (name, self.prefix) = next(self.gen)
-            return name
-
-        def rawgen(base):
-            yield((base,base))
-            i = 0
-            while True:
-                # A prospective name.
-                name = '%s %i' % (base, i)
-                # A string that the current and all following names are guaranteed to start with.
-                prefix = '%s %s' % (base, str(i)[:-1])
-                yield((name, prefix))
-                i += 1
+        except NoResultFound:
+            # Return a json message containing the path to the registration page.
+            return {'redirect': resource_path(userregister),
+                    'success': True
+                    }
 
 @view_config(route_name='logout', check_csrf=True, renderer='json')
 def logout(request):
@@ -114,27 +70,43 @@ def logout(request):
 def view_user(request):
     return {'request': request}
 
+@view_config(context=UserRegister, name='', renderer='templates/register.mako', permission='add')
 @view_config(context=User, name='edit', renderer='templates/useredit.mako', permission='edit')
 def edit_user(request):
+    is_edit = isinstance(request.context, User)
+
     schema = SQLAlchemySchemaNode(
             User,
             includes=['name'],
             )
 
+    if is_edit:
+        resource = request.context
+    else:
+        resource = User(email = request.authenticated_userid)
+
     form = deform.Form(
             schema,
             buttons=['save'],
             formid='edituser',
-            appstruct=schema.dictify(request.context),
+            appstruct=schema.dictify(resource),
             )
 
     try:
         if 'save' in request.POST:
             controls = request.POST.items()
             appstruct = form.validate(controls)
-            schema.objectify(appstruct, request.context)
+            schema.objectify(appstruct, resource)
+            db.add(resource)
+
+            if is_edit:
+                location = resource_path(resource)
+            else:
+                location = resource_path(request.root)
+
             db.commit()
-            return HTTPFound(location = resource_path(request.context))
+
+            return HTTPFound(location = location)
     except IntegrityError:
         db.rollback()
         form['name'].error = colander.Invalid(form.schema['name'], 'Duplicate name found.')
@@ -163,14 +135,17 @@ def view_userlist(request):
             'paginator': paginator,
             }
 
-@view_config(context=Root, name='', renderer='templates/root.mako')
-@view_config(context=Root, name='view', renderer='templates/root.mako')
+@view_config(context=Root, name='', renderer='templates/root.mako', permission='basic')
+@view_config(context=Root, name='view', renderer='templates/root.mako', permission='basic')
 def view_root(request):
     return {'request': request}
 
 @forbidden_view_config(renderer='templates/forbidden.mako')
 def forbidden(request):
-    return {'request': request}
+    if request.user is None:
+        return HTTPFound(location = resource_path(userregister))
+    else:
+        return {'request': request}
 
 @notfound_view_config(renderer='templates/notfound.mako')
 def notfound(request):
