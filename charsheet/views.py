@@ -36,33 +36,35 @@ import colander
 
 from webhelpers.paginate import PageURL_WebOb, Page
 
+import logging
+log = logging.getLogger(__name__)
+
 @view_config(route_name='login', check_csrf=True, renderer='json')
-class LoginView(object):
-    def __init__(self,request):
-        self.request = request
+def login_view(request):
+    # Verify the assertion and get the email of the user
+    email = verify_login(request).lower()
 
-    def __call__(self):
-        # Verify the assertion and get the email of the user
-        email = verify_login(self.request).lower()
+    # Add the headers required to remember the user to the response
+    request.response.headers.extend(remember(request, email))
 
-        # Add the headers required to remember the user to the response
-        self.request.response.headers.extend(remember(self.request, email))
-
-        try:
-            user = db.query(User).filter(User.email == email).one()
-            # Return a json message containing the address or path to redirect to.
-            return {'redirect': self.request.POST['came_from'],
-                    'success': True
-                    }
-        except NoResultFound:
-            # Return a json message containing the path to the registration page.
-            return {'redirect': resource_path(userregister),
-                    'success': True
-                    }
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        request.session.flash('User signed in.', queue='info')
+        # Return a json message containing the address or path to redirect to.
+        return {'redirect': request.POST['came_from'],
+                'success': True
+                }
+    except NoResultFound:
+        request.session.flash('New user detected.', queue='info')
+        # Return a json message containing the path to the registration page.
+        return {'redirect': resource_path(userregister),
+                'success': True
+                }
 
 @view_config(route_name='logout', check_csrf=True, renderer='json')
-def logout(request):
+def logout_view(request):
     request.response.headers.extend(forget(request))
+    request.session.flash('User signed out.', queue='info')
     return {'redirect': resource_path(request.root)}
 
 @view_config(context=User, name='', renderer='templates/user.mako', permission='view')
@@ -70,7 +72,7 @@ def logout(request):
 def view_user(request):
     return {'request': request}
 
-@view_config(context=UserRegister, name='', renderer='templates/register.mako', permission='add')
+@view_config(context=UserRegister, name='', renderer='templates/useredit.mako', permission='add')
 @view_config(context=User, name='edit', renderer='templates/useredit.mako', permission='edit')
 def edit_user(request):
     is_edit = isinstance(request.context, User)
@@ -81,38 +83,51 @@ def edit_user(request):
             )
 
     if is_edit:
-        resource = request.context
+        user = request.context
     else:
-        resource = User(email = request.authenticated_userid)
+        user = User(email = request.authenticated_userid)
 
     form = deform.Form(
             schema,
             buttons=['save'],
             formid='edituser',
-            appstruct=schema.dictify(resource),
+            appstruct=schema.dictify(user),
             )
 
     try:
         if 'save' in request.POST:
             controls = request.POST.items()
             appstruct = form.validate(controls)
-            schema.objectify(appstruct, resource)
-            db.add(resource)
+            schema.objectify(appstruct, user)
+            db.add(user)
 
             if is_edit:
-                location = resource_path(resource)
+                location = resource_path(user)
             else:
                 location = resource_path(request.root)
 
             db.commit()
 
+            if is_edit:
+                request.session.flash('User updated successfully!', queue='success')
+            else:
+                request.session.flash('User registered successfully!', queue='success')
+
             return HTTPFound(location = location)
     except IntegrityError:
         db.rollback()
+        form.error = colander.Invalid(form.schema)
         form['name'].error = colander.Invalid(form.schema['name'], 'Duplicate name found.')
     except deform.ValidationFailure:
         pass
-    return {'form': form}
+
+    css_resources, js_resources = form_resources(form)
+
+    return {'form': form,
+            'is_edit': is_edit,
+            'css_resources': css_resources,
+            'js_resources': js_resources,
+            }
 
 
 @view_config(context=UserList, name='', renderer='templates/userlist.mako', permission='view')
@@ -128,7 +143,7 @@ def view_userlist(request):
             User.every(),
             page,
             url=page_url,
-            items_per_page=20
+            items_per_page=20,
             )
 
     return {'request': request,
@@ -142,7 +157,7 @@ def view_root(request):
 
 @forbidden_view_config(renderer='templates/forbidden.mako')
 def forbidden(request):
-    if request.user is None:
+    if request.user is None and request.context != userregister and request.has_permission(userregister):
         return HTTPFound(location = resource_path(userregister))
     else:
         return {'request': request}
@@ -151,9 +166,10 @@ def forbidden(request):
 def notfound(request):
     return {'request': request}
 
-def pager(paginator):
-    return paginator.pager(
-        format='$link_previous ~2~ $link_next',
-        symbol_previous='< Previous',
-        symbol_next='Next >',
-        )
+def form_resources(form):
+    resources = form.get_widget_resources()
+    js_resources = resources['js']
+    css_resources = resources['css']
+    js_links = ['deform:static/%s' % r for r in js_resources]
+    css_links = ['deform:static/%s' % r for r in css_resources]
+    return (css_links, js_links)

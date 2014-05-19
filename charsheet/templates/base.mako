@@ -11,21 +11,31 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description" content="Nianze character sheet manager">
         <meta name="author" content="Anders Engstr&ouml;m">
-        ##<link rel="shortcut icon" href="${request.static_url('charsheet:static/pyramid-16x16.png')}">
 
         <title><%block name="title">${crumbs_string(request.context)} :: Nianze character sheet manager</%block></title>
 
-        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
-        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
-        <link rel="stylesheet" href="${request.static_url('deform:static/css/form.css')}">
+        % for css in context.get('css_resources', []):
+            <link rel="stylesheet" type="text/css" media="screen" href="${request.static_url(css)}">
+        % endfor
+
+
+        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
+            href="${request.static_url('deform:static/css/bootstrap.min.css')}" />
+        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
+            href="${request.static_url('deform_bootstrap:static/deform_bootstrap.css')}" />
+
         <link rel="stylesheet" href="${request.static_url('charsheet:static/theme.css')}">
 
+        <!-- Le javascript, which unfortunately has to be at the top for Deform to work -->
+        <script src="${request.static_url('deform:static/scripts/jquery-2.0.3.min.js')}"></script>
+        <script src="${request.static_url('deform:static/scripts/deform.js')}"></script>
 
-        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-        <!--[if lt IE 9]>
-        <script src="//oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-        <script src="//oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-        <![endif]-->
+        % for js in context.get('js_resources', []):
+            <script type="text/javascript" src="${request.static_url(js)}"></script>
+        % endfor
+
+        <script src="${request.static_url('deform_bootstrap:static/deform_bootstrap.js')}"></script>
+        <script src="${request.static_url('deform_bootstrap:static/bootstrap.min.js')}"></script>
     </head>
 
     <body>
@@ -44,16 +54,24 @@
             </div>
         </div>
 
+        <div class="container">
+            <div class="flash-messages">
+                % for queue in ['', 'success', 'info', 'error']:
+                    % for message in request.session.pop_flash(queue):
+                    <div class="alert ${ 'alert-'+queue if queue != '' else '' }">
+                            <button type="button" class="close" data-dismiss="alert">&times;</button>
+                            ${message}
+                        </div>
+                    % endfor
+                % endfor
+            </div>
+        </div>
+
         <div class="content">
             <%block name="content"></%block>
         </div>
 
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
-
         <script src="https://login.persona.org/include.js" type="text/javascript"></script>
         <script type="text/javascript">${request.persona_js}</script>
-
-        <script src="${request.static_url('deform:static/script/deform.js')}"></script>
     </body>
 </html>

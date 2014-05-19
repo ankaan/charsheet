@@ -19,6 +19,7 @@ requires = [
     'SQLAlchemy',
     'waitress',
     'webhelpers',
+    'transaction'
     ]
 
 setup(name='charsheet',

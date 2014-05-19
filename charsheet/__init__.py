@@ -27,9 +27,11 @@ def main(global_config, **settings):
         ))
 
     config.include('pyramid_mako')
+
     config.include('deform_bootstrap')
 
     config.add_static_view('static/charsheet', 'charsheet:static', cache_max_age=3600)
     config.add_static_view('static/deform', 'deform:static', cache_max_age=3600)
+    config.add_static_view('static/deform_bootstrap', 'deform_bootstrap:static', cache_max_age=3600)
     config.scan()
     return config.make_wsgi_app()

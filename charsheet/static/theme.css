@@ -13,6 +13,11 @@ h6 {
     font-weight: 300;
 }
 
+h1 {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
 div.content {
     margin: 10px;
 }
@@ -45,12 +50,33 @@ a:hover.stealth {
 .bar {
     border-bottom: 1px dashed #dddddd;
     clear: both;
+    margin-bottom: 10px;
 }
 
-.pagenav {
-    margin-bottom: 10px;
-    text-align: center;
-    font-weight: 500;
-    padding-left: 5px;
-    padding-right: 5px;
+.hide {display: none}
+
+/* Fix issue with Firefox rendering the inputs */
+select,
+textarea,
+input[type="text"],
+input[type="password"],
+input[type="datetime"],
+input[type="datetime-local"],
+input[type="date"],
+input[type="month"],
+input[type="time"],
+input[type="week"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="search"],
+input[type="tel"],
+input[type="color"],
+.uneditable-input {
+        height: 27px;
+}
+
+.panel-heading > ul.pagination, .panel-footer > ul.pagination {
+    margin-top: 0px;
+    margin-bottom: -10px;
 }

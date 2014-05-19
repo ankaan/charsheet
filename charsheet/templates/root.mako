@@ -11,9 +11,17 @@
 </%def>
 
 <%block name="content">
-    <h1>Nianze character sheet manager</h1>
-    <table class="table table-hover linklist">
-        ${trlink('Profile', request.user)}
-        ${trlink('User List', userlist)}
-    </table>
+    <div class="container">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h1>Nianze character sheet manager</h1>
+            </div>
+            <table class="table table-hover linklist">
+                <tbody>
+                    ${trlink('Profile', request.user)}
+                    ${trlink('User List', userlist)}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </%block>
