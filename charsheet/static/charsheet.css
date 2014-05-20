@@ -75,4 +75,5 @@ input[type="color"],
 .location {
     border-bottom: 1px solid #EEE;
     background-color: rgb(245, 245, 245);
+    margin-bottom: 20px;
 }
