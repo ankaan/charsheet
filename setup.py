@@ -14,7 +14,6 @@ requires = [
     'pyramid_debugtoolbar',
     'pyramid_persona',
     'deform',
-    'deform_bootstrap',
     'SQLAlchemy',
     'waitress',
     'webhelpers',

@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <%!
     from charsheet.views import resource_path
-    from charsheet.models import (crumbs, crumbs_string)
+    from charsheet.models import crumbs
+    from charsheet.models import crumbs_string
+    from charsheet.models import userlist
 %>
+
+<%def name="navlink(title,resource)">
+    % if resource is not None and request.has_permission('view',resource):
+        <li><a href="${resource_path(resource)}">${title}</a></li>
+    % endif
+</%def>
 
 <html lang="${request.locale_name}">
     <head>
@@ -14,45 +22,78 @@
 
         <title><%block name="title">${crumbs_string(request.context)} :: Nianze character sheet manager</%block></title>
 
+        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
+            href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
+            href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+
         % for css in context.get('css_resources', []):
             <link rel="stylesheet" type="text/css" media="screen" href="${request.static_url(css)}">
         % endfor
 
+        <link rel="stylesheet" href="${request.static_url('charsheet:static/charsheet.css')}">
 
-        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
-            href="${request.static_url('deform:static/css/bootstrap.min.css')}" />
-        <link rel="stylesheet" type="text/css" media="screen" charset="utf-8"
-            href="${request.static_url('deform_bootstrap:static/deform_bootstrap.css')}" />
-
-        <link rel="stylesheet" href="${request.static_url('charsheet:static/theme.css')}">
-
-        <!-- Le javascript, which unfortunately has to be at the top for Deform to work -->
-        <script src="${request.static_url('deform:static/scripts/jquery-2.0.3.min.js')}"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
         <script src="${request.static_url('deform:static/scripts/deform.js')}"></script>
 
         % for js in context.get('js_resources', []):
             <script type="text/javascript" src="${request.static_url(js)}"></script>
         % endfor
 
-        <script src="${request.static_url('deform_bootstrap:static/deform_bootstrap.js')}"></script>
-        <script src="${request.static_url('deform_bootstrap:static/bootstrap.min.js')}"></script>
     </head>
 
     <body>
-        <div class="bar">
-            <div class="crumbs">
-                % for resource in crumbs(request.context):
-                    <a href="${resource_path(resource)}">${resource.__crumbs_name__}</a> /
-                % endfor
+        <nav class="navbar navbar-inverse" role="navigation">
+            <div class="navbar-inner">
+                <div class="container">
+                    <div class="navbar-header">
+                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#page-navbar-collapse">
+                            <span class="sr-only">Toggle navigation</span>
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                        </button>
+                        <a class="navbar-brand" href="${resource_path(request.root)}">Nianze Charsheet</a>
+                    </div>
+
+                    <div class="navbar-collapse collapse" id="page-navbar-collapse">
+                        <ul class="nav navbar-nav">
+                            ${navlink('Profile',request.user)}
+                            ${navlink('User List',userlist)}
+                        </ul>
+                        <ul class="nav navbar-nav navbar-right">
+                            <li>
+                            % if not request.authenticated_userid:
+                                <a href="#signin">
+                                    <img src='https://login.persona.org/i/sign_in_blue.png'
+                                        id='signin' alt='sign-in button'/>
+                                </a>
+                            % else:
+                                <a id='signout' href="#signout">Sign out</a>
+                            % endif
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-            <div class="persona">
-                % if not request.authenticated_userid:
-                    <img src='https://login.persona.org/i/sign_in_blue.png' id='signin' alt='sign-in button'/>
-                % else:
-                    <a id='signout' href="#signout">Sign out</a>
-                % endif
+        </nav>
+
+        <div class="location">
+            <div class="container">
+                <ol class="breadcrumb">
+                    % for resource in crumbs(request.context):
+                        <li>
+                            <a href="${resource_path(resource)}">
+                                ${resource.__crumbs_name__}
+                            </a>
+                        </li>
+                    % endfor
+                </ol>
             </div>
         </div>
+
 
         <div class="container">
             <div class="flash-messages">

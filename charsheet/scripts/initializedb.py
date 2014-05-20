@@ -41,5 +41,5 @@ def main(argv=sys.argv):
     db.add(User(name='ankaan1', email='1@a'))
     db.add(User(name='ankaan2', email='2@a'))
     db.add(User(name='ankaan4', email='4@a'))
-    #db.add(User(name='Ankan', email='ankaan@gmail.com', admin=False, active_admin=False))
+    db.add(User(name='Ankan', email='ankaan@gmail.com', admin=True, active_admin=True))
     db.commit()

@@ -13,7 +13,7 @@ h6 {
     font-weight: 300;
 }
 
-h1 {
+.content h1 {
     margin-top: 10px;
     margin-bottom: 10px;
 }
@@ -32,25 +32,6 @@ div.content {
 
 a:hover.stealth {
     text-decoration: none;
-}
-
-.bar .crumbs, .bar .persona {
-    margin-left: 10px;
-    margin-right: 10px;
-}
-
-.bar .persona {
-    text-align: right;
-}
-
-.bar .crumbs {
-    float: left;
-}
-
-.bar {
-    border-bottom: 1px dashed #dddddd;
-    clear: both;
-    margin-bottom: 10px;
 }
 
 .hide {display: none}
@@ -79,4 +60,19 @@ input[type="color"],
 .panel-heading > ul.pagination, .panel-footer > ul.pagination {
     margin-top: 0px;
     margin-bottom: -10px;
+}
+
+.navbar {
+    margin-bottom: 0px;
+}
+
+.breadcrumb {
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+.location {
+    border-bottom: 1px solid #EEE;
+    background-color: rgb(245, 245, 245);
 }
