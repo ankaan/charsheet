@@ -30,15 +30,23 @@
     <input type="hidden" name="_charset_" />
     <input type="hidden" name="__formid__" value="${formid}"/>
 
-    <div class="alert alert-danger" tal:condition="field.error">
-      <div class="errorMsgLbl" i18n:translate=""
-        >There was a problem with your submission</div>
-      <p class="errorMsg">${field.errormsg}</p>
+    <div class="row">
+      <div class="col-sm-offset-3 col-sm-9">
+        <div class="alert alert-danger" tal:condition="field.error">
+          <div class="errorMsgLbl" i18n:translate=""
+            >There was a problem with your submission</div>
+          <p class="errorMsg">${field.errormsg}</p>
+        </div>
+      </div>
     </div>
 
-    <p class="section first" tal:condition="description">
-      ${description}
-    </p>
+    <div class="row">
+      <div class="col-sm-offset-3 col-sm-9">
+        <p class="section first" tal:condition="description">
+          ${description}
+        </p>
+      </div>
+    </div>
 
     <div tal:repeat="child field"
          tal:replace="structure child.render_template(item_template)"/>

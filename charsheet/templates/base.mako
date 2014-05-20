@@ -8,7 +8,9 @@
 
 <%def name="navlink(title,resource)">
     % if resource is not None and request.has_permission('view',resource):
-        <li><a href="${resource_path(resource)}">${title}</a></li>
+        <li class="${request.context == resource and 'active' or ''}">
+            <a href="${resource_path(resource)}">${title}</a>
+        </li>
     % endif
 </%def>
 
