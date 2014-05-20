@@ -21,9 +21,11 @@
                     % endif
                 </tbody>
             </table>
-            <div class="panel-footer">
-                <a href="${resource_path(request.context,'@@edit')}" class="btn btn-default" role="button">Edit</a>
-            </div>
+            % if request.has_permission('edit',request.context):
+                <div class="panel-footer">
+                    <a href="${resource_path(request.context,'@@edit')}" class="btn btn-default" role="button">Edit</a>
+                </div>
+            % endif
         </div>
     </div>
 </%block>

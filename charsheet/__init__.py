@@ -1,15 +1,13 @@
+from pyramid.authentication import AuthTktAuthenticationPolicy
 from pyramid.config import Configurator
+from pyramid.security import ALL_PERMISSIONS
+
 from sqlalchemy import engine_from_config
 
-from pyramid.security import ALL_PERMISSIONS
-from pyramid.authentication import AuthTktAuthenticationPolicy
-
-from .models import (
-    db,
-    Base,
-    get_root,
-    get_groups,
-    )
+from .models import Base
+from .models import db
+from .models import get_groups
+from .models import get_root
 
 def main(global_config, **settings):
     """ This function returns a Pyramid WSGI application.

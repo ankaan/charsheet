@@ -18,9 +18,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
-from string import digits, ascii_uppercase, ascii_lowercase
-import re
-
 db = scoped_session(sessionmaker())
 
 @subscriber(NewRequest)
@@ -43,7 +40,7 @@ class Root(object):
     __name__ = None
     __parent__ = None
     __acl__ = [
-            (Allow, 'group:active_admin', ('view','edit','add','admin')),
+            (Allow, 'group:active_admin', ('view','edit','add','delete','admin')),
             (Allow, 'group:validuser', 'basic'),
             (Deny, Authenticated, 'basic'),
             (Allow, Everyone, 'basic'),
@@ -64,7 +61,7 @@ class Root(object):
 
 class UserList(object):
     __acl__ = [
-            (Allow, 'group:admin', ('view','edit','add','admin')),
+            (Allow, 'group:admin', ('view','edit','add','delete','admin')),
             (Allow, 'group:validuser', 'view'),
             ]
 
@@ -104,18 +101,11 @@ class User(Base):
 
     @property
     def __acl__(self):
-        return [(Allow, self.email, ('view','edit'))]
+        return [(Allow, self.email, ('view','edit','delete'))]
 
     @property
     def __crumbs_name__(self):
         return self.name
-
-    invalid_name_substr = re.compile(r'[^A-Za-z0-9]+')
-    name_chars = ascii_uppercase + ascii_lowercase + digits
-    
-    @classmethod
-    def checkname(cls,checkname):
-        return all( c in cls.name_chars for c in checkname )
 
     @classmethod
     def every(cls): 
@@ -124,13 +114,9 @@ class User(Base):
     id = Column(
             Integer,
             primary_key=True,
-            info={'colanderalchemy': {
-                'title': 'User ID',
-                'exclude': True,
-                }},
             )
 
-    name = Column(
+    name = Column("name",
             String(length=20),
             nullable=False,
             index=True,
@@ -148,18 +134,12 @@ class User(Base):
             Boolean(name='admin'),
             nullable=False,
             default=False,
-            info={'colanderalchemy': {
-                'description': 'If user is admin.',
-                }},
             )
 
     active_admin = Column(
             Boolean(name='active_admin'),
             nullable=False,
             default=False,
-            info={'colanderalchemy': {
-                'description': 'If user can bypass permissions.',
-                }},
             )
 
     def groups(self):

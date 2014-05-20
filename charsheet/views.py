@@ -1,43 +1,34 @@
-from pyramid.response import Response
-from pyramid.view import (
-    view_config,
-    forbidden_view_config,
-    notfound_view_config,
-    )
-
-from sqlalchemy import asc
-from sqlalchemy.exc import (
-    DBAPIError,
-    IntegrityError,
-    )
-from sqlalchemy.orm.exc import NoResultFound
-
-from pyramid.traversal import resource_path
 from pyramid.httpexceptions import HTTPFound
-
-from .models import (
-    db,
-    User,
-    UserList,
-    UserRegister,
-    userregister,
-    Root,
-    )
-
 from pyramid_persona.views import verify_login
-from pyramid.security import (
-    remember,
-    forget,
-    )
-
-from colanderalchemy import SQLAlchemySchemaNode
-import deform
-import colander
+from pyramid.response import Response
+from pyramid.security import forget
+from pyramid.security import remember
+from pyramid.traversal import resource_path
+from pyramid.view import forbidden_view_config
+from pyramid.view import notfound_view_config
+from pyramid.view import view_config
 
 from webhelpers.paginate import PageURL_WebOb, Page
+import deform
+import colander as co
 
 import logging
 log = logging.getLogger(__name__)
+
+from .models import db
+from .models import Root
+from .models import User
+from .models import userlist
+from .models import UserList
+from .models import userregister
+from .models import UserRegister
+
+import charsheet.formutils as formutils
+
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import asc
+from sqlalchemy.orm.exc import NoResultFound
 
 @view_config(route_name='login', check_csrf=True, renderer='json')
 def login_view(request):
@@ -72,62 +63,184 @@ def logout_view(request):
 def view_user(request):
     return {'request': request}
 
-@view_config(context=UserRegister, name='', renderer='templates/useredit.mako', permission='add')
-@view_config(context=User, name='edit', renderer='templates/useredit.mako', permission='edit')
-def edit_user(request):
-    is_edit = isinstance(request.context, User)
 
-    schema = SQLAlchemySchemaNode(
-            User,
-            includes=['name'],
-            )
+@view_config(context=User, name='delete', renderer='templates/userdelete.mako', permission='delete')
+def delete_user(request):
+    schema = formutils.CSRFSchema().bind(request=request)
 
-    if is_edit:
-        user = request.context
-    else:
-        user = User(email = request.authenticated_userid)
+    is_self = request.context == request.user
 
     form = deform.Form(
             schema,
-            buttons=['save'],
-            formid='edituser',
-            appstruct=schema.dictify(user),
+            buttons=[
+                deform.Button(
+                    name='yes',
+                    css_class='btn-danger',
+                    ),
+                deform.Button(
+                    name='no',
+                    )],
+            formid='deleteuser',
             )
 
     try:
-        if 'save' in request.POST:
+        if 'no' in request.POST:
+            return HTTPFound(location = resource_path(request.context))
+        elif 'yes' in request.POST:
             controls = request.POST.items()
-            appstruct = form.validate(controls)
-            schema.objectify(appstruct, user)
-            db.add(user)
+            form.validate(controls)
 
-            if is_edit:
-                location = resource_path(user)
-            else:
-                location = resource_path(request.root)
-
+            db.delete(request.context)
             db.commit()
 
-            if is_edit:
-                request.session.flash('User updated successfully!', queue='success')
+            request.session.flash('User deleted successfully!', queue='success')
+
+            if is_self:
+                return HTTPFound(location = resource_path(userregister))
             else:
-                request.session.flash('User registered successfully!', queue='success')
+                return HTTPFound(location = resource_path(userlist))
 
-            return HTTPFound(location = location)
-    except IntegrityError:
-        db.rollback()
-        form.error = colander.Invalid(form.schema)
-        form['name'].error = colander.Invalid(form.schema['name'], 'Duplicate name found.')
+    except ValueError as e:
+        if e.message == "Bad CSRF token":
+            request.session.flash('Warning: Bad CSRF token, another site may be trying to control your session!', queue='error')
+            formutils.error(form)
+        else:
+            raise e
+
     except deform.ValidationFailure:
-        pass
+        if form['csrf'].error is not None:
+            request.session.flash('Warning: Bad CSRF token, another site may be trying to control your session!', queue='error')
 
-    css_resources, js_resources = form_resources(form)
+    css_resources, js_resources = formutils.resources(form)
 
     return {'form': form,
-            'is_edit': is_edit,
             'css_resources': css_resources,
             'js_resources': js_resources,
             }
+
+
+@view_config(context=UserRegister, name='', renderer='templates/useredit.mako', permission='add')
+@view_config(context=User, name='edit', renderer='templates/useredit.mako', permission='edit')
+class EditUserView(object):
+
+    class EditSchema(formutils.CSRFSchema):
+        name = co.SchemaNode(
+                co.String(),
+                default='',
+                validator=formutils.sane_name,
+                )
+
+    class AdminSchema(EditSchema):
+        email = co.SchemaNode(
+                co.String(),
+                validator=co.All(
+                    formutils.lower_case,
+                    co.Email(),
+                    ))
+        admin = co.SchemaNode(co.Boolean())
+        active_admin = co.SchemaNode(co.Boolean())
+
+    def __init__(self, request):
+        self.request = request
+
+    def __call__(self):
+        is_edit = isinstance(self.request.context, User)
+
+        buttons = [
+                deform.Button(
+                    name='save',
+                    ),
+                deform.Button(
+                    name='reset',
+                    type='reset',
+                    )]
+
+        if is_edit and self.request.has_permission('admin'):
+            dictifier = formutils.Dictifier(['name', 'email', 'admin', 'active_admin'])
+            s = EditUserView.AdminSchema()
+        else:
+            dictifier = formutils.Dictifier(['name'])
+            s = EditUserView.EditSchema()
+
+        if self.request.has_permission('delete'):
+            buttons.append(deform.Button(
+                name='delete',
+                css_class='btn-danger',
+                ))
+
+        schema = s.bind(request=self.request)
+
+        if is_edit:
+            user = self.request.context
+        else:
+            user = User(email = self.request.authenticated_userid)
+
+        form = deform.Form(
+                schema,
+                buttons=buttons,
+                formid='edituser',
+                appstruct=dictifier.dictify(user),
+                )
+
+        try:
+            if 'delete' in self.request.POST:
+                return HTTPFound(location = resource_path(user,'@@delete'))
+
+            elif 'save' in self.request.POST:
+                controls = self.request.POST.items()
+                appstruct = form.validate(controls)
+                dictifier.objectify(appstruct, user)
+                db.add(user)
+
+                if is_edit:
+                    location = resource_path(user)
+                else:
+                    location = resource_path(self.request.root)
+
+                db.commit()
+
+                if is_edit:
+                    self.request.session.flash('User updated successfully!', queue='success')
+                else:
+                    self.request.session.flash('User registered successfully!', queue='success')
+
+                return HTTPFound(location = location)
+
+        except IntegrityError, e:
+            db.rollback()
+
+            message = e.orig.message
+            pattern = "column %s is not unique"
+
+            email_key = User.__mapper__.attrs['email'].columns[0].key
+            name_key = User.__mapper__.attrs['name'].columns[0].key
+
+            if message == pattern%email_key:
+                formutils.error(form, fieldname='email', msg='Email must be unique.')
+            elif message == pattern%name_key:
+                formutils.error(form, fieldname='name', msg='Name must be unique.')
+            else: 
+                self.request.session.flash('Integrity failure, something is wrong with the user. This should not happen.', queue='error')
+                formutils.error(form)
+
+        except ValueError as e:
+            if e.message == "Bad CSRF token":
+                self.request.session.flash('Warning: Bad CSRF token, another site may be trying to control your session!', queue='error')
+                formutils.error(form)
+            else:
+                raise e
+
+        except deform.ValidationFailure:
+            if form['csrf'].error is not None:
+                self.request.session.flash('Warning: Bad CSRF token, another site may be trying to control your session!', queue='error')
+
+        css_resources, js_resources = formutils.resources(form)
+
+        return {'form': form,
+                'is_edit': is_edit,
+                'css_resources': css_resources,
+                'js_resources': js_resources,
+                }
 
 
 @view_config(context=UserList, name='', renderer='templates/userlist.mako', permission='view')
@@ -157,7 +270,7 @@ def view_root(request):
 
 @forbidden_view_config(renderer='templates/forbidden.mako')
 def forbidden(request):
-    if request.user is None and request.context != userregister and request.has_permission(userregister):
+    if request.user is None and request.context != userregister and request.has_permission('add',userregister):
         return HTTPFound(location = resource_path(userregister))
     else:
         return {'request': request}
@@ -165,11 +278,3 @@ def forbidden(request):
 @notfound_view_config(renderer='templates/notfound.mako')
 def notfound(request):
     return {'request': request}
-
-def form_resources(form):
-    resources = form.get_widget_resources()
-    js_resources = resources['js']
-    css_resources = resources['css']
-    js_links = ['deform:static/%s' % r for r in js_resources]
-    css_links = ['deform:static/%s' % r for r in css_resources]
-    return (css_links, js_links)
