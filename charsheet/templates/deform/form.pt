@@ -31,7 +31,7 @@
     <input type="hidden" name="__formid__" value="${formid}"/>
 
     <div class="row">
-      <div class="col-sm-offset-3 col-sm-9">
+      <div class="col-xs-offset-2 col-xs-9">
         <div class="alert alert-danger" tal:condition="field.error">
           <div class="errorMsgLbl" i18n:translate=""
             >There was a problem with your submission</div>
@@ -41,7 +41,7 @@
     </div>
 
     <div class="row">
-      <div class="col-sm-offset-3 col-sm-9">
+      <div class="col-xs-offset-2 col-xs-9">
         <p class="section first" tal:condition="description">
           ${description}
         </p>
@@ -52,7 +52,7 @@
          tal:replace="structure child.render_template(item_template)"/>
 
     <div class="form-group">
-      <div class="col-sm-offset-3 col-sm-9">
+      <div class="col-xs-offset-2 col-xs-9">
         <tal:loop tal:repeat="button buttons">
           <button
                 tal:define="btn_disposition repeat.button.start and 'btn-primary' or 'btn-default';

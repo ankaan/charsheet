@@ -13,14 +13,14 @@
      i18n:domain="deform">
 
   <label for="${oid}"
-         class="control-label ${required and 'required' or ''} col-sm-3"
+         class="control-label ${required and 'required' or ''} col-xs-2"
          tal:condition="not structural"
          id="req-${oid}"
          >
     ${title}
   </label>
 
-  <div class="${not field.widget.hidden and 'col-sm-9' or ''}">
+  <div class="widget-container ${not field.widget.hidden and 'col-xs-10' or ''}">
     <div tal:define="input_prepend field.widget.input_prepend | None;
                      input_append field.widget.input_append  | None"
          tal:omit-tag="not (input_prepend or input_append)"

@@ -10,6 +10,7 @@ from pyramid.view import view_config
 
 from webhelpers.paginate import PageURL_WebOb, Page
 import deform
+import deform.widget
 import colander as co
 
 import logging
@@ -136,7 +137,9 @@ class EditUserView(object):
                 validator=co.All(
                     formutils.lower_case,
                     co.Email(),
-                    ))
+                    ),
+                widget=deform.widget.CheckedInputWidget(),
+                )
         admin = co.SchemaNode(co.Boolean())
         active_admin = co.SchemaNode(co.Boolean())
 

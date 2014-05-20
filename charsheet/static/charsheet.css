@@ -56,3 +56,7 @@ a:hover.stealth {
     background-color: rgb(245, 245, 245);
     margin-bottom: 20px;
 }
+
+.widget-container > div:not(:last-of-type) {
+    margin-bottom: 15px;
+}
