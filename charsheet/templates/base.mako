@@ -69,14 +69,15 @@
                         </ul>
                         <ul class="nav navbar-nav navbar-right">
                             <li>
-                            % if not request.authenticated_userid:
-                                <a href="#signin">
-                                    <img src='https://login.persona.org/i/sign_in_blue.png'
-                                        id='signin' alt='sign-in button'/>
-                                </a>
-                            % else:
-                                <a id='signout' href="#signout">Sign out</a>
-                            % endif
+                                % if not request.authenticated_userid:
+                                    <a id="signin" href="#signin">
+                                        <img alt='Sign in'
+                                             src='https://login.persona.org/i/sign_in_blue.png'
+                                             />
+                                    </a>
+                                % else:
+                                    <a id="signout" href="#signout">Sign out</a>
+                                % endif
                             </li>
                         </ul>
                     </div>

@@ -24,6 +24,13 @@
                     ${trlink('Profile', request.user)}
                 </tbody>
             </table>
+            % if not request.authenticated_userid:
+                <div class="panel-body">
+                    <p>
+                        Welcome to the nianze character manager. To continue please sign in with your email address.
+                    </p>
+                </div>
+            % endif
         </div>
     </div>
 </%block>
