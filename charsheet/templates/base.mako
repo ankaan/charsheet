@@ -4,6 +4,7 @@
     from charsheet.models import crumbs
     from charsheet.models import crumbs_string
     from charsheet.models import userlist
+    from charsheet.models import partylist
 %>
 
 <%def name="navlink(title,resource)">
@@ -62,8 +63,9 @@
 
                     <div class="navbar-collapse collapse" id="page-navbar-collapse">
                         <ul class="nav navbar-nav">
-                            ${navlink('Profile',request.user)}
+                            ${navlink('Party List',partylist)}
                             ${navlink('User List',userlist)}
+                            ${navlink('Profile',request.user)}
                         </ul>
                         <ul class="nav navbar-nav navbar-right">
                             <li>
@@ -99,9 +101,9 @@
 
         <div class="container">
             <div class="flash-messages">
-                % for queue in ['', 'success', 'info', 'error']:
+                % for queue in ['', 'success', 'info', 'warning', 'danger']:
                     % for message in request.session.pop_flash(queue):
-                    <div class="alert ${ 'alert-'+queue if queue != '' else '' }">
+                    <div class="alert alert-${ queue and queue or 'info' }">
                             <button type="button" class="close" data-dismiss="alert">&times;</button>
                             ${message}
                         </div>

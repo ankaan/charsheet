@@ -7,18 +7,13 @@ from pyramid.security import Deny
 from pyramid.security import DENY_ALL
 from pyramid.security import Everyone
 
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Boolean
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import Text
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.orm import sessionmaker
+import sqlalchemy as sa
+import sqlalchemy.orm as orm
 
-db = scoped_session(sessionmaker())
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm.exc import NoResultFound
+
+db = orm.scoped_session(orm.sessionmaker())
 
 @subscriber(NewRequest)
 def begin_session(event):
@@ -29,11 +24,11 @@ def begin_session(event):
 Base = declarative_base()
 
 Base.metadata.naming_convention = {
-    "ix": 'ix_%(column_0_label)s',
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
+    'ix': 'ix_%(column_0_label)s',
+    'uq': 'uq_%(table_name)s_%(column_0_name)s',
+    'ck': 'ck_%(table_name)s_%(constraint_name)s',
+    'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+    'pk': 'pk_%(table_name)s'
     }
 
 class Root(object):
@@ -82,16 +77,32 @@ class UserRegister(object):
 
     __crumbs_name__ = 'Register'
 
+class PartyList(object):
+    __acl__ = [
+            (Allow, 'group:validuser', 'view'),
+            ]
+
+    __crumbs_name__ = 'Party List'
+
+    def __getitem__(self,key):
+        try:
+            return db.query(Party).filter(Party.name == key).one()
+        except NoResultFound:
+            raise KeyError(key)
+
 root = Root()
 
 userlist = UserList()
 root.add('user',userlist)
 
+partylist = PartyList()
+root.add('party',partylist)
+
 userregister = UserRegister()
 root.add('register',userregister)
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = 'user'
 
     __parent__ = userlist
 
@@ -109,35 +120,35 @@ class User(Base):
 
     @classmethod
     def every(cls): 
-        return db.query(cls).order_by(User.name)
+        return db.query(cls).order_by(cls.name)
 
-    id = Column(
-            Integer,
+    id = sa.Column(
+            sa.Integer,
             primary_key=True,
             )
 
-    name = Column("name",
-            String(length=20),
+    name = sa.Column(
+            sa.String(length=20),
             nullable=False,
             index=True,
             unique=True,
             )
 
-    email = Column(
-            String(length=300),
+    email = sa.Column(
+            sa.String(length=300),
             nullable=False,
             index=True,
             unique=True,
             )
 
-    admin = Column(
-            Boolean(name='admin'),
+    admin = sa.Column(
+            sa.Boolean(name='admin'),
             nullable=False,
             default=False,
             )
 
-    active_admin = Column(
-            Boolean(name='active_admin'),
+    active_admin = sa.Column(
+            sa.Boolean(name='active_admin'),
             nullable=False,
             default=False,
             )
@@ -150,6 +161,145 @@ class User(Base):
             groups.append('group:active_admin')
         return groups
 
+class Party(Base):
+    __tablename__ = 'party'
+    __parent__ = partylist
+
+    @property
+    def __name__(self):
+        return self.name
+
+    @property
+    def __acl__(self):
+        return []
+
+    @property
+    def __crumbs_name__(self):
+        return self.name
+
+    @classmethod
+    def every(cls):
+        return db.query(cls).order_by(cls.name)
+
+    def __getitem__(self,key):
+        try:
+            return db.query(Character).filter(and_(
+                Character.party_id == self.id,
+                Character.name == key,
+                )).one()
+        except NoResultFound:
+            raise KeyError(key)
+
+    id = sa.Column(
+            sa.Integer,
+            primary_key=True,
+            )
+
+    name = sa.Column(
+            sa.String(length=20),
+            nullable=False,
+            index=True,
+            unique=True,
+            )
+
+    characters = orm.relationship('Character', backref='party')
+
+class PartyPermission(Base):
+    __tablename__ = 'party_permission'
+
+    __table_args__ = (
+            sa.PrimaryKeyConstraint('party_id', 'user_id'),
+            )
+
+    party_id = sa.Column(
+            sa.ForeignKey('party.id'),
+            nullable=False,
+            )
+
+    user_id = sa.Column(
+            sa.ForeignKey('user.id'),
+            nullable=False,
+            )
+
+    edit = sa.Column(
+            sa.Boolean(name='edit'),
+            nullable=False,
+            default=False,
+            )
+
+    party = orm.relationship('Party', backref='permissions')
+    user = orm.relationship('User', backref='party_permissions')
+
+
+class Character(Base):
+    __tablename__ = 'character'
+
+    @property
+    def __parent__(self):
+        return self.party
+
+    @property
+    def __name__(self):
+        return self.name
+
+    @property
+    def __acl__(self):
+        return []
+
+    @property
+    def __crumbs_name__(self):
+        return self.name
+
+    __table_args__ = (
+            sa.Index(
+                'ix_character_party_name',
+                'party_id', 'name',
+                unique=True,
+                ),
+            )
+
+    id = sa.Column(
+            sa.Integer,
+            primary_key=True,
+            )
+
+    name = sa.Column(
+            sa.String(length=20),
+            nullable=False,
+            )
+
+    party_id = sa.Column(
+            sa.ForeignKey('party.id'),
+            nullable=False,
+            )
+
+class CharacterPermission(Base):
+    __tablename__ = 'character_permission'
+
+    __table_args__ = (
+            sa.PrimaryKeyConstraint('character_id', 'user_id'),
+            )
+
+    character_id = sa.Column(
+            sa.ForeignKey('character.id'),
+            nullable=False,
+            )
+
+    user_id = sa.Column(
+            sa.ForeignKey('user.id'),
+            nullable=False,
+            )
+
+    edit = sa.Column(
+            sa.Boolean(name='edit'),
+            nullable=False,
+            default=False,
+            )
+
+    character = orm.relationship('Character', backref='permissions')
+    user = orm.relationship('User', backref='character_permissions')
+
+
 def get_root(request):
     return root
 
@@ -160,7 +310,7 @@ def setup_user(event):
     # If authentication fails, get_group is never run and request.user is never set.
     # Therefore; do it here!
     try:
-        user = event.request.user
+        event.request.user
     except AttributeError:
         event.request.user = None
 

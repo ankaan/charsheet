@@ -2,6 +2,7 @@
 <%!
     from charsheet.views import resource_path
     from charsheet.models import userlist
+    from charsheet.models import partylist
 %>
 
 <%def name="trlink(title,resource)">
@@ -18,8 +19,9 @@
             </div>
             <table class="table table-hover linklist">
                 <tbody>
-                    ${trlink('Profile', request.user)}
+                    ${trlink('Party List', partylist)}
                     ${trlink('User List', userlist)}
+                    ${trlink('Profile', request.user)}
                 </tbody>
             </table>
         </div>
