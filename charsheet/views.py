@@ -222,7 +222,7 @@ class EditUserView(object):
                 formutils.error(form, fieldname='email', msg='Email must be unique.')
             elif message == pattern%name_key:
                 formutils.error(form, fieldname='name', msg='Name must be unique.')
-            else: 
+            else:
                 self.request.session.flash('Integrity failure, something is wrong with the user. This should not happen.', queue='error')
                 formutils.error(form)
 

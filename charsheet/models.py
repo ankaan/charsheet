@@ -1,16 +1,14 @@
 from pyramid.events import NewRequest
 from pyramid.events import subscriber
-from pyramid.security import Allow
-from pyramid.security import ALL_PERMISSIONS
-from pyramid.security import Authenticated
-from pyramid.security import Deny
-from pyramid.security import DENY_ALL
-from pyramid.security import Everyone
 
-import sqlalchemy as sa
+import pyramid.security as sec
+
 import sqlalchemy.orm as orm
+import sqlalchemy as sa
 
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.orm.exc import NoResultFound
 
 db = orm.scoped_session(orm.sessionmaker())
@@ -31,14 +29,20 @@ Base.metadata.naming_convention = {
     'pk': 'pk_%(table_name)s'
     }
 
+Valid_User =    ('group', 'valid_user')
+Admin =         ('group', 'admin')
+Active_Admin =  ('group', 'active_admin')
+
+ALLOW_ACTIVE_ADMIN =  (sec.Allow, Active_Admin, sec.ALL_PERMISSIONS)
+
 class Root(object):
     __name__ = None
     __parent__ = None
     __acl__ = [
-            (Allow, 'group:active_admin', ('view','edit','add','delete','admin')),
-            (Allow, 'group:validuser', 'basic'),
-            (Deny, Authenticated, 'basic'),
-            (Allow, Everyone, 'basic'),
+            ALLOW_ACTIVE_ADMIN,
+            (sec.Allow, Valid_User, 'basic'),
+            (sec.Deny, sec.Authenticated, 'basic'),
+            (sec.Allow, sec.Everyone, 'basic'),
             ]
 
     __crumbs_name__ = 'Home'
@@ -56,8 +60,8 @@ class Root(object):
 
 class UserList(object):
     __acl__ = [
-            (Allow, 'group:admin', ('view','edit','add','delete','admin')),
-            (Allow, 'group:validuser', 'view'),
+            (sec.Allow, Admin, sec.ALL_PERMISSIONS),
+            (sec.Allow, Valid_User, 'view'),
             ]
 
     __crumbs_name__ = 'User List'
@@ -70,16 +74,16 @@ class UserList(object):
 
 class UserRegister(object):
     __acl__ = [
-            (Deny, 'group:validuser', ALL_PERMISSIONS),
-            (Allow, Authenticated, 'add'),
-            DENY_ALL,
+            (sec.Deny, Valid_User, sec.ALL_PERMISSIONS),
+            (sec.Allow, sec.Authenticated, 'add'),
+            sec.DENY_ALL,
             ]
 
     __crumbs_name__ = 'Register'
 
 class PartyList(object):
     __acl__ = [
-            (Allow, 'group:validuser', 'view'),
+            (sec.Allow, Valid_User, 'view'),
             ]
 
     __crumbs_name__ = 'Party List'
@@ -112,14 +116,14 @@ class User(Base):
 
     @property
     def __acl__(self):
-        return [(Allow, self.email, ('view','edit','delete'))]
+        return [(sec.Allow, self.email, ('view','edit','delete'))]
 
     @property
     def __crumbs_name__(self):
         return self.name
 
     @classmethod
-    def every(cls): 
+    def every(cls):
         return db.query(cls).order_by(cls.name)
 
     id = sa.Column(
@@ -154,11 +158,11 @@ class User(Base):
             )
 
     def groups(self):
-        groups = ['group:validuser']
+        groups = [Valid_User]
         if self.admin:
-            groups.append('group:admin')
+            groups.append(Admin)
         if self.active_admin:
-            groups.append('group:active_admin')
+            groups.append(Active_Admin)
         return groups
 
 class Party(Base):
@@ -171,7 +175,22 @@ class Party(Base):
 
     @property
     def __acl__(self):
-        return []
+        acl = [(
+            sec.Allow,
+            perm.user.email,
+            perm.edit and ('view','edit','delete','add') or 'view',
+            ) for perm in self.permissions ]
+
+        acl += [(
+            sec.Allow,
+            perm.user.email,
+            'view',
+            ) for perm in char.permissions for char in self.characters ]
+
+        acl.append(ALLOW_ACTIVE_ADMIN)
+        acl.append(sec.DENY_ALL)
+
+        return acl
 
     @property
     def __crumbs_name__(self):
@@ -182,13 +201,7 @@ class Party(Base):
         return db.query(cls).order_by(cls.name)
 
     def __getitem__(self,key):
-        try:
-            return db.query(Character).filter(and_(
-                Character.party_id == self.id,
-                Character.name == key,
-                )).one()
-        except NoResultFound:
-            raise KeyError(key)
+        return self.characters[key]
 
     id = sa.Column(
             sa.Integer,
@@ -202,34 +215,22 @@ class Party(Base):
             unique=True,
             )
 
-    characters = orm.relationship('Character', backref='party')
-
-class PartyPermission(Base):
-    __tablename__ = 'party_permission'
-
-    __table_args__ = (
-            sa.PrimaryKeyConstraint('party_id', 'user_id'),
-            )
-
-    party_id = sa.Column(
-            sa.ForeignKey('party.id'),
+    active = sa.Column(
+            sa.Boolean(name='active'),
             nullable=False,
+            default=True,
             )
 
-    user_id = sa.Column(
-            sa.ForeignKey('user.id'),
-            nullable=False,
+    characters = orm.relationship(
+            'Character',
+            backref=orm.backref(
+                'party',
+                lazy='joined',
+                ),
+            collection_class=attribute_mapped_collection('name'),
+            cascade="all, delete-orphan",
+            passive_deletes=True,
             )
-
-    edit = sa.Column(
-            sa.Boolean(name='edit'),
-            nullable=False,
-            default=False,
-            )
-
-    party = orm.relationship('Party', backref='permissions')
-    user = orm.relationship('User', backref='party_permissions')
-
 
 class Character(Base):
     __tablename__ = 'character'
@@ -244,7 +245,24 @@ class Character(Base):
 
     @property
     def __acl__(self):
-        return []
+        acl = [(
+            sec.Allow,
+            perm.user.email,
+            perm.edit and ('view','edit') or 'view',
+            ) for perm in self.permissions ]
+
+        if self.private:
+            # Move in GM permissions from party
+            acl += [(
+                sec.Allow,
+                perm.user.email,
+                ('view','edit','delete','add'),
+                ) for perm in self.permissions if perm.edit ]
+            # Deny everything else.
+            acl.append(ALLOW_ACTIVE_ADMIN)
+            acl.append(sec.DENY_ALL)
+
+        return acl
 
     @property
     def __crumbs_name__(self):
@@ -263,14 +281,77 @@ class Character(Base):
             primary_key=True,
             )
 
+    party_id = sa.Column(
+            sa.ForeignKey(
+                'party.id',
+                ondelete='CASCADE',
+                onupdate='CASCADE',
+                ),
+            nullable=False,
+            )
+
     name = sa.Column(
             sa.String(length=20),
             nullable=False,
             )
 
-    party_id = sa.Column(
-            sa.ForeignKey('party.id'),
+    private = sa.Column(
+            sa.Boolean(name='private'),
             nullable=False,
+            default=False,
+            )
+
+class PartyPermission(Base):
+    __tablename__ = 'party_permission'
+
+    __table_args__ = (
+            sa.PrimaryKeyConstraint('party_id', 'user_id'),
+            )
+
+    party_id = sa.Column(
+            sa.ForeignKey(
+                'party.id',
+                ondelete='CASCADE',
+                onupdate='CASCADE',
+                ),
+            nullable=False,
+            )
+
+    user_id = sa.Column(
+            sa.ForeignKey(
+                'user.id',
+                ondelete='CASCADE',
+                onupdate='CASCADE',
+                ),
+            nullable=False,
+            )
+
+    edit = sa.Column(
+            sa.Boolean(name='edit'),
+            nullable=False,
+            default=False,
+            )
+
+    party = orm.relationship(
+            'Party',
+            backref=orm.backref(
+                'permissions',
+                cascade="all, delete-orphan",
+                passive_deletes=True,
+                ),
+            lazy='joined',
+            innerjoin=True,
+            )
+
+    user = orm.relationship(
+            'User',
+            backref=orm.backref(
+                'party_permissions',
+                cascade="all, delete-orphan",
+                passive_deletes=True,
+                ),
+            lazy='joined',
+            innerjoin=True,
             )
 
 class CharacterPermission(Base):
@@ -281,12 +362,20 @@ class CharacterPermission(Base):
             )
 
     character_id = sa.Column(
-            sa.ForeignKey('character.id'),
+            sa.ForeignKey(
+                'character.id',
+                ondelete='CASCADE',
+                onupdate='CASCADE',
+                ),
             nullable=False,
             )
 
     user_id = sa.Column(
-            sa.ForeignKey('user.id'),
+            sa.ForeignKey(
+                'user.id',
+                ondelete='CASCADE',
+                onupdate='CASCADE',
+                ),
             nullable=False,
             )
 
@@ -296,12 +385,36 @@ class CharacterPermission(Base):
             default=False,
             )
 
-    character = orm.relationship('Character', backref='permissions')
-    user = orm.relationship('User', backref='character_permissions')
+    character = orm.relationship(
+            'Character',
+            backref=orm.backref(
+                'permissions',
+                lazy='subquery',
+                cascade="all, delete-orphan",
+                passive_deletes=True,
+                ),
+            lazy='joined',
+            innerjoin=True,
+            )
+    user = orm.relationship('User',
+            backref=orm.backref(
+                'character_permissions',
+                cascade="all, delete-orphan",
+                passive_deletes=True,
+                ),
+            lazy='joined',
+            innerjoin=True,
+            )
 
 
 def get_root(request):
     return root
+
+@sa.event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 @subscriber(NewRequest)
 def setup_user(event):
