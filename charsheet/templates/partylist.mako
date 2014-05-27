@@ -19,7 +19,7 @@
     <div class="container">
         <div class="panel panel-default">
             <div class="panel-heading">
-                <h1>User List</h1>
+                <h1>Party List</h1>
             </div>
 
             ${bar('top')}
@@ -28,18 +28,12 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Email</th>
                     </tr>
                 </thead>
                 <tbody>
-                    % for u in paginator.items:
+                    % for p in paginator.items:
                         <tr>
-                            % if request.has_permission('edit',u):
-                                <td><a href="${resource_path(u)}">${u.name}</a></td>
-                                <td><a href="${resource_path(u)}">${u.email}</a></td>
-                            % else:
-                                <td colspan="2"><a href="${resource_path(u)}">${u.name}</a></td>
-                            % endif
+                            <td><a href="${resource_path(p)}">${p.name}</a></td>
                         </tr>
                     % endfor
                 </tbody>

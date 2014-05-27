@@ -49,36 +49,34 @@
 
     <body>
         <nav class="navbar navbar-inverse" role="navigation">
-            <div class="navbar-inner">
-                <div class="container">
-                    <div class="navbar-header">
-                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#page-navbar-collapse">
-                            <span class="sr-only">Toggle navigation</span>
-                            <span class="icon-bar"></span>
-                            <span class="icon-bar"></span>
-                            <span class="icon-bar"></span>
-                        </button>
-                        <a class="navbar-brand" href="${resource_path(request.root)}">Nianze Charsheet</a>
-                    </div>
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#page-navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="${resource_path(request.root)}">Nianze Charsheet</a>
+                </div>
 
-                    <div class="navbar-collapse collapse" id="page-navbar-collapse">
-                        <ul class="nav navbar-nav">
-                            ${navlink('Party List',partylist)}
-                            ${navlink('User List',userlist)}
-                            ${navlink('Profile',request.user)}
-                        </ul>
-                        <ul class="nav navbar-nav navbar-right">
-                            <li>
-                                % if request.authenticated_userid:
-                                    <a id="signout" href="#signout">Sign out</a>
-                                % else:
-                                    <a id="signin" href="#signin"><img alt='Sign in'
-                                             src='https://login.persona.org/i/sign_in_blue.png'
-                                             /></a>
-                                % endif
-                            </li>
-                        </ul>
-                    </div>
+                <div class="navbar-collapse collapse" id="page-navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        ${navlink('Party List',partylist)}
+                        ${navlink('User List',userlist)}
+                        ${navlink('Profile',request.user)}
+                    </ul>
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            % if request.authenticated_userid:
+                                <a id="signout" href="#signout">Sign out</a>
+                            % else:
+                                <a id="signin" href="#signin"><img alt='Sign in'
+                                         src='https://login.persona.org/i/sign_in_blue.png'
+                                         /></a>
+                            % endif
+                        </li>
+                    </ul>
                 </div>
             </div>
         </nav>
@@ -113,6 +111,15 @@
 
         <div class="content">
             <%block name="content"></%block>
+        </div>
+
+        <div class="container footer">
+            <div class="right">
+                <a href="https://github.com/ankaan/charsheet">Source @ GitHub</a>
+            </div>
+            <div class="left">
+                <p>© Anders Engstr&ouml;m</p>
+            </div>
         </div>
 
         <script src="https://login.persona.org/include.js" type="text/javascript"></script>

@@ -12,10 +12,13 @@ from pyramid.scripts.common import parse_vars
 
 from ..models import (
     db,
-    User,
     Base,
+    User,
+    Party,
+    Character,
+    PartyPermission,
+    CharacterPermission,
     )
-
 
 def usage(argv):
     cmd = os.path.basename(argv[0])
@@ -35,11 +38,29 @@ def main(argv=sys.argv):
     db.configure(bind=engine)
     Base.metadata.create_all(engine)
 
-    db.add(User(name='test', email='test@test.test'))
     db.add(User(name='ankaan', email='ankan@a'))
     db.add(User(name='ankaan0', email='0@a'))
     db.add(User(name='ankaan1', email='1@a'))
     db.add(User(name='ankaan2', email='2@a'))
     db.add(User(name='ankaan4', email='4@a'))
-    db.add(User(name='Ankan', email='ankaan@gmail.com', admin=True, active_admin=True))
+
+    other = User(name='test', email='test@test.test')
+    db.add(other)
+
+    me = User(name='Ankan', email='ankaan@gmail.com', admin=True, active_admin=True)
+    db.add(me)
+
+    party = Party(name='Adventure Time')
+    party.permissions.append(PartyPermission(user=me))
+    db.add(party)
+
+    charparty = Party(name='Avataria')
+    char = Character(name='My Avatar', party=charparty)
+    char.permissions.append(CharacterPermission(user=me))
+    db.add(charparty)
+
+    otherparty = Party(name='Not Mine')
+    otherparty.permissions.append(PartyPermission(user=other))
+    db.add(otherparty)
+
     db.commit()

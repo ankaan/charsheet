@@ -178,7 +178,7 @@ class Party(Base):
         acl = [(
             sec.Allow,
             perm.user.email,
-            perm.edit and ('view','edit','delete','add') or 'view',
+            perm.edit and ('view','edit','delete','add','move') or 'view',
             ) for perm in self.permissions ]
 
         acl += [(
@@ -199,6 +199,19 @@ class Party(Base):
     @classmethod
     def every(cls):
         return db.query(cls).order_by(cls.name)
+
+    @classmethod
+    def by_user(cls,user):
+        party = db.query(Party)\
+                .join(PartyPermission)\
+                .filter(PartyPermission.user_id == user.id)\
+                .order_by(None)
+        character = db.query(Party)\
+                .join(Character)\
+                .join(CharacterPermission)\
+                .filter(CharacterPermission.user_id == user.id)\
+                .order_by(None)
+        return party.union(character).order_by(Party.name)
 
     def __getitem__(self,key):
         return self.characters[key]
@@ -256,7 +269,7 @@ class Character(Base):
             acl += [(
                 sec.Allow,
                 perm.user.email,
-                ('view','edit','delete','add'),
+                ('view','edit','delete','add','move'),
                 ) for perm in self.permissions if perm.edit ]
             # Deny everything else.
             acl.append(ALLOW_ACTIVE_ADMIN)

@@ -19,10 +19,13 @@ log = logging.getLogger(__name__)
 from .models import db
 from .models import Root
 from .models import User
+from .models import Party
 from .models import userlist
 from .models import UserList
 from .models import userregister
 from .models import UserRegister
+from .models import partylist
+from .models import PartyList
 
 import charsheet.formutils as formutils
 
@@ -122,7 +125,7 @@ def delete_user(request):
 
 @view_config(context=UserRegister, name='', renderer='templates/useredit.mako', permission='add')
 @view_config(context=User, name='edit', renderer='templates/useredit.mako', permission='edit')
-class EditUserView(object):
+class EditUser(object):
 
     class EditSchema(formutils.CSRFSchema):
         name = co.SchemaNode(
@@ -160,10 +163,10 @@ class EditUserView(object):
 
         if is_edit and self.request.has_permission('admin'):
             dictifier = formutils.Dictifier(['name', 'email', 'admin', 'active_admin'])
-            s = EditUserView.AdminSchema()
+            s = EditUser.AdminSchema()
         else:
             dictifier = formutils.Dictifier(['name'])
-            s = EditUserView.EditSchema()
+            s = EditUser.EditSchema()
 
         if self.request.has_permission('delete'):
             buttons.append(deform.Button(
@@ -257,6 +260,31 @@ def view_userlist(request):
     page_url = PageURL_WebOb(request)
     paginator = Page(
             User.every(),
+            page,
+            url=page_url,
+            items_per_page=20,
+            )
+
+    return {'request': request,
+            'paginator': paginator,
+            }
+
+@view_config(context=PartyList, name='', renderer='templates/partylist.mako', permission='view')
+@view_config(context=PartyList, name='view', renderer='templates/partylist.mako', permission='view')
+def view_partylist(request):
+    try:
+        page = int(request.params.get('page', 1))
+    except ValueError:
+        page = 1
+
+    if request.has_permission('admin'):
+        query = Party.every()
+    else:
+        query = Party.by_user(request.user)
+
+    page_url = PageURL_WebOb(request)
+    paginator = Page(
+            query,
             page,
             url=page_url,
             items_per_page=20,

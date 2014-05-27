@@ -1,7 +1,7 @@
 @import url(//fonts.googleapis.com/css?family=Open+Sans:300,400,600,700);
 body {
     font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-weight: 300;
+    font-weight: 400;
 }
 h1,
 h2,
@@ -10,7 +10,7 @@ h4,
 h5,
 h6 {
     font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-weight: 300;
+    font-weight: 400;
 }
 
 .content h1 {
@@ -36,11 +36,6 @@ a:hover.stealth {
 
 .hide {display: none}
 
-.panel-heading > ul.pagination, .panel-footer > ul.pagination {
-    margin-top: 0px;
-    margin-bottom: -10px;
-}
-
 .navbar {
     margin-bottom: 0px;
 }
@@ -59,4 +54,34 @@ a:hover.stealth {
 
 .widget-container > div:not(:last-of-type) {
     margin-bottom: 15px;
+}
+
+.navbar .pagination {
+    margin-top: 11px;
+    margin-bottom: 0px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.pagination-sm > li > span, .pagination-sm > li > a {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    text-align: center;
+}
+
+.footer {
+    clear: both;
+    padding-left: 30px;
+    padding-right: 30px;
+    margin-top: -10px;
+}
+
+.footer .right {
+    float: right;
+}
+
+.footer p, .footer a {
+    color: #BBB;
 }
