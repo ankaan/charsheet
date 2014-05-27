@@ -294,6 +294,25 @@ def view_partylist(request):
             'paginator': paginator,
             }
 
+@view_config(context=Party, name='', renderer='templates/party.mako', permission='view')
+@view_config(context=Party, name='view', renderer='templates/party.mako', permission='view')
+def view_party(request):
+    charlist = [
+            c
+            for c in request.context.characters.values()
+            if request.has_permission('view', c)
+            ]
+
+    for c in charlist:
+        c.edit = request.has_permission('edit', c)
+
+    charlist.sort(key=lambda c: c.name)
+    charlist.sort(key=lambda c: c.edit, reverse=True)
+
+    return {'request': request,
+            'charlist': charlist,
+            }
+
 @view_config(context=Root, name='', renderer='templates/root.mako', permission='basic')
 @view_config(context=Root, name='view', renderer='templates/root.mako', permission='basic')
 def view_root(request):

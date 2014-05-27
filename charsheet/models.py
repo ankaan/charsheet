@@ -178,14 +178,14 @@ class Party(Base):
         acl = [(
             sec.Allow,
             perm.user.email,
-            perm.edit and ('view','edit','delete','add','move') or 'view',
+            ('view','edit','delete','add','move') if perm.edit else 'view',
             ) for perm in self.permissions ]
 
         acl += [(
             sec.Allow,
             perm.user.email,
             'view',
-            ) for perm in char.permissions for char in self.characters ]
+            ) for perm in ( char.permissions for char in self.characters )]
 
         acl.append(ALLOW_ACTIVE_ADMIN)
         acl.append(sec.DENY_ALL)
